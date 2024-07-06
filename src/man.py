@@ -33,6 +33,7 @@ class ImageSelectorApp:
         self.root.bind("<Return>", self.save_coordinates)
         self.root.bind("<space>", self.next_image)
         self.root.bind("<MouseWheel>", self.zoom)
+        self.root.bind("<Delete>", self.delete_selection)
 
         self.rect = None
         self.start_x = None
@@ -157,7 +158,13 @@ class ImageSelectorApp:
         self.canvas.delete("all")
         self.canvas.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
         self.listbox.delete(0, tk.END)
+        width = self.tk_image.width()
+        height = self.tk_image.height()
         for i, (x0, y0, x1, y1, visibility, name) in enumerate(self.coordinates):
+            x0 = x0 * width
+            y0 = y0 * height
+            x1 = x1 * width
+            y1 = y1 * height
             color = self.colors[i % len(self.colors)]
             if self.selected_rect_idx == i:
                 rect = self.canvas.create_rectangle(x0, y0, x1, y1, outline=color, width=3, tags=f"rect{i}")
@@ -170,7 +177,7 @@ class ImageSelectorApp:
             self.canvas.tag_bind(f"rect{i}", "<Button-3>", lambda event, idx=i: self.change_visibility(idx))
             self.canvas.tag_bind(f"text{i}", "<Button-3>", lambda event, idx=i: self.change_visibility(idx))
             self.canvas.tag_bind(f"rect{i}", "<ButtonPress-1>", lambda event, idx=i: self.select_rectangle(event, idx))
-            self.listbox.insert(tk.END, f"{name} - ({x0}, {y0}, {x1}, {y1})")
+            self.listbox.insert(tk.END, f"{name} - ({x0, y0, x1, y1})")
             self.listbox.itemconfig(tk.END, {'bg': color})
 
     def draw_corner_handles(self, x0, y0, x1, y1, color, idx):
@@ -221,11 +228,11 @@ class ImageSelectorApp:
                         center_x = 0.0
                         center_y = 0.0
                     else:
-                        center_x = (x0 + x1) / 2 / width
-                        center_y = (y0 + y1) / 2 / height
+                        center_x = (x0 + x1) / 2
+                        center_y = (y0 + y1) / 2
                     if i == 0:
-                        box_width = abs(x1 - x0) / width
-                        box_height = abs(y1 - y0) / height
+                        box_width = abs(x1 - x0)
+                        box_height = abs(y1 - y0)
                         file.write(f"{center_x:.6f} {center_y:.6f} {box_width:.6f} {box_height:.6f}")
                     else:
                         file.write(f" {center_x:.6f} {center_y:.6f} {float(visibility):.6f}")
@@ -272,7 +279,8 @@ class ImageSelectorApp:
                 name = simpledialog.askstring("Name", "Enter name for this rectangle:")
                 if not name:
                     name = f"Rect{len(self.coordinates) + 1}"
-                self.coordinates.append((self.start_x, self.start_y, self.current_x, self.current_y, 2, name))
+                self.coordinates.append((self.start_x/self.tk_image.width(), self.start_y/self.tk_image.height(), 
+                                         self.current_x/self.tk_image.width(), self.current_y/self.tk_image.height(), 2, name))
                 self.coordinates.sort(key=lambda x: x[5])
                 self.redraw_rectangles()
                 print(f"Selected coordinates: {(self.start_x, self.start_y, self.current_x, self.current_y)}")
@@ -294,23 +302,25 @@ class ImageSelectorApp:
         pass
 
     def zoom(self, event):
-        if event.state & 0x0004:  # Check if Alt key is pressed
-            if event.delta > 0:
-                self.zoom_factor *= 1.1
-            else:
-                self.zoom_factor /= 1.1
-            self.apply_zoom()
+        if event.delta > 0:
+            self.zoom_factor *= 1.1
+        else:
+            self.zoom_factor /= 1.1
+        self.apply_zoom()
 
     def apply_zoom(self):
         if self.image:
             width, height = int(self.image.width * self.zoom_factor), int(self.image.height * self.zoom_factor)
-            resized_image = self.image.resize((width, height), Image.ANTIALIAS)
+            resized_image = self.image.resize((width, height))
             self.tk_image = ImageTk.PhotoImage(resized_image)
             self.canvas.config(width=width, height=height)
             self.canvas.create_image(0, 0, anchor=tk.NW, image=self.tk_image)
             self.redraw_rectangles()
             for i, (x0, y0, x1, y1, visibility, name) in enumerate(self.coordinates):
-                x0, y0, x1, y1 = [coord * self.zoom_factor for coord in (x0, y0, x1, y1)]
+                x0 = x0 * width
+                y0 = y0 * height
+                x1 = x1 * width
+                y1 = y1 * height
                 color = self.colors[i % len(self.colors)]
                 rect = self.canvas.create_rectangle(x0, y0, x1, y1, outline=color, tags=f"rect{i}")
                 self.canvas.create_text((x0 + x1) / 2, y0 - 10, text=name, fill=color, tags=f"text{i}")
@@ -365,40 +375,19 @@ class ImageSelectorApp:
         self.canvas.bind("<B1-Motion>", self.on_mouse_move)
         self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
 
+    def delete_selection(self, event):
+        if self.selected_rect_idx is not None:
+            del self.coordinates[self.selected_rect_idx]
+            self.selected_rect_idx = None
+            self.redraw_rectangles()
+        elif self.listbox.curselection():
+            selected_idx = self.listbox.curselection()[0]
+            del self.coordinates[selected_idx]
+            self.redraw_rectangles()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
     root.geometry("1400x800")  # Increase the resolution of the interface
     app = ImageSelectorApp(root)
     root.mainloop()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
