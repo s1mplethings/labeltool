@@ -342,9 +342,11 @@ class ImageSelectorApp:
     def move_rectangle(self, event):
         if self.selected_rect_idx is not None:
             x0, y0, x1, y1, visibility, name = self.coordinates[self.selected_rect_idx]
+            width = self.tk_image.width()
+            height = self.tk_image.height()
             dx = event.x - self.start_x
             dy = event.y - self.start_y
-            self.coordinates[self.selected_rect_idx] = (x0 + dx, y0 + dy, x1 + dx, y1 + dy, visibility, name)
+            self.coordinates[self.selected_rect_idx] = (x0 + dx/width, y0 + dy/height, x1 + dx/width, y1 + dy/height, visibility, name)
             self.redraw_rectangles()
 
     def start_resize(self, event, idx, corner):
@@ -358,14 +360,20 @@ class ImageSelectorApp:
     def resize_rectangle(self, event):
         if self.selected_rect_idx is not None:
             x0, y0, x1, y1, visibility, name = self.coordinates[self.selected_rect_idx]
+            width = self.tk_image.width()
+            height = self.tk_image.height()
+            x0 = x0 * width
+            y0 = y0 * height
+            x1 = x1 * width
+            y1 = y1 * height
             if self.resize_corner == 'tl':
-                self.coordinates[self.selected_rect_idx] = (event.x, event.y, x1, y1, visibility, name)
+                self.coordinates[self.selected_rect_idx] = (event.x/width, event.y/height, x1/width, y1/height, visibility, name)
             elif self.resize_corner == 'tr':
-                self.coordinates[self.selected_rect_idx] = (x0, event.y, event.x, y1, visibility, name)
+                self.coordinates[self.selected_rect_idx] = (x0/width, event.y/height, event.x/width, y1/height, visibility, name)
             elif self.resize_corner == 'bl':
-                self.coordinates[self.selected_rect_idx] = (event.x, y0, x1, event.y, visibility, name)
+                self.coordinates[self.selected_rect_idx] = (event.x/width, y0/height, x1/width, event.y/height, visibility, name)
             elif self.resize_corner == 'br':
-                self.coordinates[self.selected_rect_idx] = (x0, y0, event.x, event.y, visibility, name)
+                self.coordinates[self.selected_rect_idx] = (x0/width, y0/height, event.x/width, event.y/height, visibility, name)
             self.redraw_rectangles()
 
     def stop_resize(self, event):
